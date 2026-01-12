@@ -1,0 +1,263 @@
+---
+title: "PART 1 "
+date: "2025-01-25"
+output:
+  html_document: default
+  pdf_document: 
+      latex_engine: xelatex
+  word_document: default
+---
+```{r}
+library(ggplot2)
+set.seed(202)
+```
+
+```{r}
+x0 <- 1  # Setting initial value x0 = 1 
+N <- 10000  # Define N = 10,000 as the number of samples
+s <- 1  # Define s = 1 as Standard Deviation (SD )for the proposal distribution
+```
+
+```{r}
+#Set the PDF(probablity density function) using abs() to return absolute vlaues only 
+PDF <- function(x) {
+  return(0.5*exp(-abs(x)))
+}
+```
+
+```{r}
+#creating random walk metropolis (rwm) function 
+rwm <- function(N,s ,x){
+  
+  #Using sample() to generate N unique samples without replacement ensuring each sample has an equal chance   of being sampled. Storing it as R_sample
+  
+  chain <- (sample(N, replace = FALSE, prob = NULL))
+  #setting x as first element of the vector 
+  chain[1] <- x 
+  
+  for (i in 2:N) {
+   # Simulating random number x* using rnorm() with mean (Xi -1) and SD = s
+  x_star <- rnorm(1, mean = chain[i-1], sd = s)
+  
+  # Computing the ratio 
+  ratio <-log(PDF(x_star)) - log(PDF(chain[i-1]))
+  
+  # Generating Random number u from the uniform distribution between 1 & 0
+  u <- log(runif(1, min=0, max=1))
+  
+ #Accept if log u < logr(x*,xi -1) otherwise retain (xi-1)
+  if (u < ratio) {
+    chain[i] <- x_star} 
+  else {
+      chain[i] <- chain[i-1]
+    }
+  }
+  return(chain)
+}
+```
+
+```{r}
+#running the RWM finction through the 
+chain0 <- rwm(N,s,x0)
+```
+
+```{r}
+# Define x values
+x_values <- seq(-10, 10, length.out = 10000)
+
+# Compute function values
+fx_values <- PDF(x_values)
+
+#transforming into a data base
+fx_df <- data.frame(x=x_values, y= fx_values)
+```
+
+```{r}
+#store list in data frame 
+r_sample_df <- data.frame(Number = 1:N , Results = chain0)
+
+#Plot Histogram and Kernal Density Estimate and f(x)
+library(ggthemes)
+
+rwm_hist <- ggplot(r_sample_df, aes(x=Results)) + geom_density(aes(color = "Kernel Density"), size = 1) + geom_histogram(aes(y = ..density.., fill = "Histogram"), bins = 50, alpha = 0.5) + geom_line(data = fx_df, aes(x = x, y = y, color = "Target PDF"), size = 1, linetype = "dashed", alpha = 0.8) + labs(x = 'Results', y = 'Density',
+     title = 'Random Walk Metropolis',
+     color = "Curve",  
+     fill = "Curve")  +
+  scale_color_manual(values = c("Kernel Density" = "red", "Target PDF" = "black")) +  
+  scale_fill_manual(values = c("Histogram" = "blue")) 
+rwm_hist 
+```
+```{r}
+ggsave("rwm_hist.png", plot = rwm_hist, width = 8, height = 8, dpi = 300)
+```
+
+```{r}
+getwd()
+```
+
+```{r}
+# Calcualte sample Mean 
+sample_mean <-mean(r_sample_df$Results)
+print(paste("The Monte Carlo Mean is", sample_mean))
+```
+
+```{r}
+# Calculate Standard Deviation 
+sample_sd <-sd(r_sample_df$Results)
+print(paste("The Monte Carlo Standard Deviation is", sample_sd ))
+```
+The results we obtained are : 
+Monte Carlo mean -> 0.0117 (to 4dp)
+Monte Carlo SD -> 1.4727 (to 4dp)
+
+The objective of part one is to simulate random numbers and run them through the Random Walk Metropolis (RWM) algorithm and then compute the mean and Standard deviation(SD). We then have to compare them to the True Mean and True SD of f(x) curve. The comparison will allow us to know whether our Random Walk Metropolis (RWM) algorithm is running correctly
+
+We start by plotting the the output of the RWM in the form of a histogram and kernel density plot(KDE). The histogram illustrates the frequency of data values falling within the intervals set, while the KDE presents the density estimates of the data values in from of a curve. 
+
+From the diagram generated, we can see that the KDE and true f(x) curves share the same symmetry. The Monte Carlo mean we got was  0.0117 (to 4dp) which is close to the theoretical mean of 0.The distribution is symmetric and centered at 0 hence generating a sample mean near 0 indicates that our chain is exploring the distribution correctly. However we cannot achieve an exact 0 because of the limit put to the number of samples. As we collect more samples, we are more likely to capture the full range of possible values, hence allowing the KDE to achieve a better approximation of the of the true density. With more data we are also able to decrease the variance of KDE as with more samples we can reduce the random fluctuations allowing the estimates we generate to have less noise. 
+
+The Monte Carlo Standard Deviation we got was 1.4727 (to 4dp) which is reasonably close to the sqrt(2) ≈ 1.4142, which is the theoretical SD. The SD captures the spread of the distribution. It tells us that the samples are on average, 1.47 units away from the mean. We can tell the chain is capturing the correct spread as is close to sqrt(2).
+
+(b)
+```{r}
+#Setting inital values for j=4 chain
+x1 <- 10
+x2 <- 20
+x3 <- 30 
+x4 <- 40
+```
+
+```{r}
+#Setting Parameters 
+N = 2000 #Number of iterations per chain 
+s_value <- seq(0.001, 1, length.out = 1000) #1000 intervals between 0.01 and 1 representing different SDs
+J <- 4 #Number of chains 
+```
+
+```{r}
+#Running RWM for different grid of s values 
+chain_matrix1 <- matrix(0, nrow = N, ncol = length(s_value))
+for (i in 1:length(s_value)) {
+  s <- s_value[i] #Extracts i'th value from (s_value) sequence and assigns it to s 
+  chain1 <- rwm(N, s, x1)  
+  chain_matrix1[,i] <- chain1 #stores all chain in a single matrix 
+}
+
+chain_matrix2 <- matrix(0, nrow = N, ncol = length(s_value))
+for (i in 1:length(s_value)) {
+  s <- s_value[i]
+  chain2 <- rwm(N, s, x2)  
+  chain_matrix2[,i] <- chain2
+}
+
+
+chain_matrix3 <- matrix(0, nrow = N, ncol = length(s_value))
+for (i in 1:length(s_value)) {
+  s <- s_value[i]
+  chain3 <- rwm(N, s, x3)  
+  chain_matrix3[,i] <- chain3
+}
+
+chain_matrix4 <- matrix(0, nrow = N, ncol = length(s_value))
+for (i in 1:length(s_value)) {
+  s <- s_value[i]
+  chain4 <- rwm(N, s, x4)  
+  chain_matrix4[,i] <- chain4
+}
+```
+
+```{r}
+#Function to compute Sample Mean of Each Chain 
+mean_chains <- function(chain_matrix) {
+  Mj <- colMeans(chain_matrix, na.rm = FALSE)
+  return(Mj)
+  }
+```
+
+```{r}
+#Computing Mean of each chain
+Mj1 <- mean_chains(chain_matrix1)
+Mj2 <- mean_chains(chain_matrix2)
+Mj3 <- mean_chains(chain_matrix3)
+Mj4 <- mean_chains(chain_matrix4)
+```
+
+```{r}
+#initializing a vector to store 1000 values 
+M <- numeric(1000)
+#Computing Over All Mean 
+for(i in 1:1000) {
+  M[i] <- (Mj1[i] + Mj2[i] +Mj3[i] + Mj4[i])/4
+}
+```
+
+```{r}
+#Function to calculate sample variance of each chain
+var_chains <- function(chain_matrix, mean_chains) {
+    Vj <- numeric(1000)  # Initialize vector to store variances
+    for (i in 1:1000) {
+        chain <- chain_matrix[, i]  # Extract the i-th column
+        Vj[i] <- sum((chain - mean_chains[i])^2) / length(chain)  
+    }
+    return(Vj)
+}
+```
+
+```{r}
+#Running chains through var_chains function 
+Vj1 <- var_chains(chain_matrix1, Mj1)
+Vj2 <- var_chains(chain_matrix2, Mj2)
+Vj3 <- var_chains(chain_matrix3, Mj3)
+Vj4 <- var_chains(chain_matrix4, Mj4)
+```
+
+```{r}
+#computing within chain variance
+W <- numeric(1000)
+for (i in 1:1000) {  
+  Vj1 <- var(chain_matrix1[, i]) 
+  Vj2 <- var(chain_matrix2[, i])  
+  Vj3 <- var(chain_matrix3[, i]) 
+  Vj4 <- var(chain_matrix4[, i])   
+  
+    W[i] <- ((Vj1) + (Vj2) + (Vj3) + (Vj4)) / 4
+}
+```
+
+```{r}
+#Computing between chain variance 
+B <- numeric(1000)  
+
+for (i in 1:1000) {
+  B[i] <- ((Mj1[i]- M[i])^2 + (Mj2[i]- M[i])^2 + (Mj3[i]- M[i])^2 + (Mj4[i]- M[i])^2 )/ 4
+}
+# create vector to store the R^ values 
+R <- numeric(1000)  
+#loop to calculate R^ for a grid of s-values 0.001 to 1
+for (i in 1:1000) { 
+   R[i] <- sqrt((B[i]+W[i])/W[i])
+}
+```
+
+```{r}
+index <- which(s_value == 0.001)  # Find index where s = 0.001
+Rhat <-R[index]  # Get the corresponding R-hat value
+
+print(paste("The Rhat for the random walk Metropolis algorithm with N = 2000, s = 0.001 and J = 4 is", round(Rhat, digits = 2)))
+```
+
+```{r}
+r_convergence <- data.frame(s= s_value, R = R)
+plot_r_convergence <- ggplot(r_convergence, aes(x = s, y = R)) + geom_line() +  geom_hline(yintercept = 1.05, color = "red") + scale_color_manual(values = c("Rhat values" = "black", "Rhat = 1.05 threshold" = "red")) +
+  labs(color = "Legend") + geom_line(aes(color = "Rhat values")) + geom_hline(aes(yintercept = 1.05, color = "Rhat = 1.05"), linetype = "dashed") +
+  labs(x = 'SD value', y = 'R^ values', title = 'Convergence of R^')
+
+print(plot_r_convergence)
+```
+```{r}
+
+ggsave("r_convergence.png", plot = plot_r_convergence, width = 8, height = 8, dpi = 300)
+```
+
+The Rhat value that we got for N = 2000, s = 0.001 and J = 4 was 737.26. The Rhat value informs us how well the 4 chains are mixing together(if they have converged). As the question stated, the value of Rhat close to 1 indicates convergence, and its usually desired for rhat value to be lesser than 1.05. The possible cause of the high Rhat value can be due to the small s that was told to be set. We can interpret s as the standard deviation(SD) of the proposal distribution, which controls the step size in the RWM function. When we set the s value to 0.001, the steps taken from each initial points that we set are small the chains stay in those regions for a longer time instead of spreading out and mixing well. Hence the chains take longer to converge, explaining a large Rhat value. 
+However it is important to note that as the s_value increases, the step size in the proposal distribution also increases which allows the chain to take lager steps, exploring a wider region. By being a able to move more freely between the different areas they are able to mix better and are not fixed to a localized area. We can confirm this as we get an r value of 1.013643 when the s is set to 1 proving that the chains eventually converge. 
